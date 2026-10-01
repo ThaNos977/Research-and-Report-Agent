@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp 
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" 
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" 
+  xsi:type="TaskPaneApp">
+  
+  <Id>d3b07384-d113-4c9e-953e-27083049b10a</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Deven Patil</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Research &amp; Documentation Assistant" />
+  <Description DefaultValue="Autonomous agentic research, claim verification, section feedback, and documentation assistant for Word." />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png" />
+  <SupportUrl DefaultValue="https://github.com/devenpatil/Research-&-Report-Agent" />
+  
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+  
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/" />
+  </DefaultSettings>
+  
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="TabResearchAssistant">
+              <Group id="GroupResearch">
+                <Label resid="GroupLabel" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon16" />
+                  <bt:Image size="32" resid="Icon32" />
+                  <bt:Image size="80" resid="Icon80" />
+                </Icon>
+                <Control xsi:type="Button" id="BtnOpenAssistant">
+                  <Label resid="ButtonLabel" />
+                  <Supertip>
+                    <Title resid="ButtonTitle" />
+                    <Description resid="ButtonDesc" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16" />
+                    <bt:Image size="32" resid="Icon32" />
+                    <bt:Image size="80" resid="Icon80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ResearchTaskPane</TaskpaneId>
+                    <SourceLocation resid="TaskPaneUrl" />
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="TabLabel" />
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon16" DefaultValue="https://localhost:3000/icon-16.png" />
+        <bt:Image id="Icon32" DefaultValue="https://localhost:3000/icon-32.png" />
+        <bt:Image id="Icon80" DefaultValue="https://localhost:3000/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="TaskPaneUrl" DefaultValue="https://localhost:3000/" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel" DefaultValue="AI Assistant" />
+        <bt:String id="ButtonLabel" DefaultValue="Research Assistant" />
+        <bt:String id="ButtonTitle" DefaultValue="Open Research Assistant" />
+        <bt:String id="TabLabel" DefaultValue="Research" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="ButtonDesc" DefaultValue="Launch side panel to verify claims, review sections, and query your paper." />
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

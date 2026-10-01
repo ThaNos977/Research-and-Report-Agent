@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-serif: "Instrument Serif", Georgia, Cambria, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Editorial Warm Stone & Carbon Ink Palette Tokens */
+  --color-warm-50: #faf8f5;
+  --color-warm-100: #f3f0e8;
+  --color-warm-200: #e8e3d8;
+  --color-warm-300: #dcd6c8;
+  --color-warm-400: #b8b09f;
+  --color-warm-500: #8f8674;
+  --color-warm-600: #686153;
+  --color-warm-700: #49443a;
+  --color-warm-800: #2b2822;
+  --color-warm-900: #181714;
+  --color-warm-950: #100f0d;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-[#f3f0e8] text-[#181714] antialiased selection:bg-[#181714] selection:text-[#f3f0e8];
+  }
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+}
+
+.pill-capsule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  padding: 0.5rem 1.4rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pill-capsule:hover {
+  transform: translateY(-1px);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
