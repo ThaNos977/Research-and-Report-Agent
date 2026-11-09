@@ -9,6 +9,8 @@ import { MockDocumentViewer } from '../packages/ui/components/MockDocumentViewer
 import { MockDocumentAdapter } from '../packages/host-mock/mockAdapter';
 import { WordDocumentAdapter } from '../packages/host-word/wordAdapter';
 import { GoogleDocsAdapter } from '../packages/host-gdocs/docsAdapter';
+import { PdfDocumentAdapter } from '../packages/host-pdf/pdfAdapter';
+import { PdfDocumentViewer } from '../packages/ui/components/PdfDocumentViewer';
 import { HostType, AssistantSettings, DocumentAdapter } from '../packages/core/types';
 import { LocalStorageAdapter } from '../packages/core/storage/storage';
 
@@ -22,8 +24,8 @@ export default function App() {
   // Settings State
   const [settings, setSettings] = useState<AssistantSettings>({
     geminiApiKey: process.env.GEMINI_API_KEY || '',
-    modelId: 'gemini-3.5-flash',
-    embeddingModelId: 'gemini-embedding-001',
+    modelId: 'gemini-3.5-flash-lite',
+    embeddingModelId: 'word2vec',
     chunkSize: 800,
     chunkOverlap: 100,
     retrievalK: 5,
@@ -37,24 +39,33 @@ export default function App() {
       let savedModel = await storage.get('assistant_model_id');
       let savedEmbeddingModel = await storage.get('assistant_embedding_model_id');
 
-      // Migrate any deprecated model references stored in browser cache
-      if (savedModel === 'gemini-2.5-flash' || savedModel === 'models/gemini-2.5-flash') {
-        savedModel = 'gemini-3.5-flash';
+      // Migrate any deprecated or previous default model references stored in browser cache
+      if (
+        !savedModel ||
+        savedModel === 'gemini-2.5-flash' ||
+        savedModel === 'models/gemini-2.5-flash' ||
+        savedModel === 'gemini-3.8-flash' ||
+        savedModel?.includes('gemini-2.5-flash')
+      ) {
+        savedModel = 'gemini-3.5-flash-lite';
         await storage.set('assistant_model_id', savedModel);
       }
-      if (savedEmbeddingModel === 'text-embedding-004' || savedEmbeddingModel?.includes('text-embedding-004')) {
-        savedEmbeddingModel = 'gemini-embedding-001';
+      if (
+        !savedEmbeddingModel ||
+        savedEmbeddingModel === 'text-embedding-004' ||
+        savedEmbeddingModel === 'gemini-embedding-001' ||
+        savedEmbeddingModel?.includes('text-embedding-004')
+      ) {
+        savedEmbeddingModel = 'word2vec';
         await storage.set('assistant_embedding_model_id', savedEmbeddingModel);
       }
 
-      if (savedKey || savedModel || savedEmbeddingModel) {
-        setSettings((prev) => ({
-          ...prev,
-          geminiApiKey: savedKey || prev.geminiApiKey,
-          modelId: savedModel || prev.modelId,
-          embeddingModelId: savedEmbeddingModel || prev.embeddingModelId,
-        }));
-      }
+      setSettings((prev) => ({
+        ...prev,
+        geminiApiKey: savedKey || prev.geminiApiKey,
+        modelId: savedModel || 'gemini-3.5-flash-lite',
+        embeddingModelId: savedEmbeddingModel || 'word2vec',
+      }));
     })();
   }, [storage]);
 
@@ -96,6 +107,7 @@ export default function App() {
   const mockAdapter = useMemo(() => new MockDocumentAdapter(), []);
   const wordAdapter = useMemo(() => new WordDocumentAdapter(), []);
   const gdocsAdapter = useMemo(() => new GoogleDocsAdapter(), []);
+  const pdfAdapter = useMemo(() => new PdfDocumentAdapter(), []);
 
   const activeAdapter: DocumentAdapter = useMemo(() => {
     switch (currentHost) {
@@ -103,17 +115,24 @@ export default function App() {
         return wordAdapter;
       case 'gdocs':
         return gdocsAdapter;
+      case 'pdf':
+        return pdfAdapter;
       case 'mock':
       default:
         return mockAdapter;
     }
-  }, [currentHost, mockAdapter, wordAdapter, gdocsAdapter]);
+  }, [currentHost, mockAdapter, wordAdapter, gdocsAdapter, pdfAdapter]);
 
   return (
     <div className="w-screen h-screen flex overflow-hidden font-sans bg-[#ede9df] dark:bg-[#12110f] text-[#181714] dark:text-[#faf8f5] transition-colors">
       {/* If host is Mock, render side-by-side interactive document simulator */}
       {currentHost === 'mock' && (
         <MockDocumentViewer adapter={mockAdapter} />
+      )}
+
+      {/* PDF host: open a PDF and work on its extracted text (read-only) */}
+      {currentHost === 'pdf' && (
+        <PdfDocumentViewer adapter={pdfAdapter} />
       )}
 
       {/* Task Pane Assistant Side Panel */}

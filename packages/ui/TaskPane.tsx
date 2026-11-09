@@ -22,7 +22,8 @@ import {
   HostType 
 } from '../core/types';
 import { GeminiClient } from '../core/llm/geminiClient';
-import { GeminiEmbedder } from '../core/nlp/embedder';
+import { GeminiEmbedder, Embedder } from '../core/nlp/embedder';
+import { Word2VecEmbedder } from '../core/nlp/word2vec';
 import { AskPaperSkill } from '../core/skills/askPaper';
 import { CheckClaimsSkill } from '../core/skills/checkClaims';
 import { ReviewSectionSkill } from '../core/skills/reviewSection';
@@ -62,13 +63,16 @@ export const TaskPane: React.FC<TaskPaneProps> = ({
       : null;
   }, [settings.geminiApiKey, settings.modelId, settings.embeddingModelId]);
 
-  const embedder = useMemo(() => {
-    return client ? new GeminiEmbedder(client) : null;
-  }, [client]);
+  const embedder: Embedder = useMemo(() => {
+    if (settings.embeddingModelId === 'word2vec') {
+      return new Word2VecEmbedder();
+    }
+    return client ? new GeminiEmbedder(client) : new Word2VecEmbedder();
+  }, [client, settings.embeddingModelId]);
 
   // Initialize Skills
   const askPaperSkill = useMemo(() => {
-    return client && embedder ? new AskPaperSkill(client, adapter, embedder) : null;
+    return client ? new AskPaperSkill(client, adapter, embedder as any) : null;
   }, [client, adapter, embedder]);
 
   const checkClaimsSkill = useMemo(() => {
@@ -76,7 +80,7 @@ export const TaskPane: React.FC<TaskPaneProps> = ({
   }, [client, adapter]);
 
   const reviewSectionSkill = useMemo(() => {
-    return client && embedder ? new ReviewSectionSkill(client, adapter, embedder) : null;
+    return client ? new ReviewSectionSkill(client, adapter, embedder) : null;
   }, [client, adapter, embedder]);
 
   const docsAssistSkill = useMemo(() => {
@@ -112,13 +116,33 @@ export const TaskPane: React.FC<TaskPaneProps> = ({
       />
 
       {/* Minimal API Key Notice */}
-      {!settings.geminiApiKey && (
+      {!settings.geminiApiKey ? (
         <div 
           onClick={() => setIsSettingsOpen(true)}
           className="p-2.5 px-4 bg-[#ede8dc] dark:bg-[#22201b] border-b border-[#dfd9cc] dark:border-[#2d2a23] text-[11px] font-mono uppercase tracking-wider text-[#686153] dark:text-[#b8b09f] flex items-center justify-between cursor-pointer hover:bg-[#e5e0d2] transition-colors"
         >
           <span>→ Configure Gemini API Key</span>
           <span className="font-bold underline">Setup</span>
+        </div>
+      ) : (
+        <div 
+          onClick={() => setIsSettingsOpen(true)}
+          className="px-3.5 py-1.5 bg-[#ede8dc]/60 dark:bg-[#1f1d18] border-b border-[#dfd9cc] dark:border-[#2d2a23] text-[10px] font-mono text-[#686153] dark:text-[#a8a090] flex items-center justify-between cursor-pointer hover:bg-[#e5e0d2] dark:hover:bg-[#26241f] transition-colors"
+          title="Click to view or edit active model configurations"
+        >
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2d6a4f] shrink-0 animate-pulse" />
+            <span className="font-semibold text-[#181714] dark:text-[#faf8f5]">
+              {settings.modelId || 'gemini-3.5-flash-lite'}
+            </span>
+            <span className="text-[#a09886]">•</span>
+            <span className="text-[#403b32] dark:text-[#ccc4b4]">
+              {settings.embeddingModelId === 'word2vec' ? 'Word2Vec (Local Offline)' : settings.embeddingModelId}
+            </span>
+          </div>
+          <span className="text-[9px] uppercase tracking-wider text-[#8f8674] hover:underline shrink-0 ml-2">
+            Config
+          </span>
         </div>
       )}
 

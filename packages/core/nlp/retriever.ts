@@ -51,8 +51,8 @@ export class HybridRetriever {
       sparseRankMap.set(res.chunk.id, rank + 1);
     });
 
-    // 2. Dense Vector Search
-    const queryEmbedding = await this.embedder.embed(query);
+    // 2. Dense Vector Search with RETRIEVAL_QUERY task type
+    const queryEmbedding = await this.embedder.embed(query, 'RETRIEVAL_QUERY');
     const denseScores: { chunk: DocChunk; score: number }[] = [];
 
     for (const chunk of this.chunks) {
@@ -62,10 +62,15 @@ export class HybridRetriever {
       }
     }
 
+    // Sort dense scores descending
     denseScores.sort((a, b) => b.score - a.score);
     const denseRankMap = new Map<string, number>();
+
+    // Only assign dense ranks to candidates with positive similarity correlation
     denseScores.forEach((res, rank) => {
-      denseRankMap.set(res.chunk.id, rank + 1);
+      if (res.score > 0.05) {
+        denseRankMap.set(res.chunk.id, rank + 1);
+      }
     });
 
     // 3. Reciprocal Rank Fusion (RRF)
@@ -74,6 +79,9 @@ export class HybridRetriever {
     for (const chunk of this.chunks) {
       const sRank = sparseRankMap.get(chunk.id);
       const dRank = denseRankMap.get(chunk.id);
+
+      // Only fuse if chunk matched at least one retriever
+      if (sRank === undefined && dRank === undefined) continue;
 
       let rrfScore = 0;
       if (sRank !== undefined) {
@@ -104,10 +112,19 @@ export class HybridRetriever {
    * match actual chunks retrieved, rejecting hallucinated chunk IDs.
    */
   static validateCitations(
-    citedChunkIds: string[],
+    citedChunkIdsOrText: string[] | string,
     retrievedChunks: RetrievedChunk[]
   ): string[] {
     const validIds = new Set(retrievedChunks.map((r) => r.chunk.id));
-    return citedChunkIds.filter((id) => validIds.has(id));
+    
+    let candidates: string[] = [];
+    if (typeof citedChunkIdsOrText === 'string') {
+      const matches = citedChunkIdsOrText.match(/chunk_\d+/g) || [];
+      candidates = matches;
+    } else {
+      candidates = citedChunkIdsOrText;
+    }
+
+    return Array.from(new Set(candidates.filter((id) => validIds.has(id))));
   }
 }

@@ -35,22 +35,28 @@ export const ResearchBriefView: React.FC<ResearchBriefViewProps> = ({
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const handleStartResearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim() || !skill || isSearching) return;
 
     setIsSearching(true);
-    setStatusMessage('Autonomous research agent planning steps and searching literature...');
+    setStatusMessage('Autonomous research agent planning steps and synthesizing literature...');
+    setNotice(null);
     setReport(null);
 
     try {
       const res = await skill.run(topic.trim());
       if (res) {
         setReport(res);
+        setNotice({ type: 'success', text: `Generated brief on "${res.title}"` });
+      } else {
+        setNotice({ type: 'error', text: 'Could not generate report for this topic. Please try rephrasing.' });
       }
     } catch (err: any) {
-      alert(`Research failed: ${err.message || String(err)}`);
+      console.error('Research error:', err);
+      setNotice({ type: 'error', text: `Research notice: ${err.message || 'Error occurred; please retry.'}` });
     } finally {
       setIsSearching(false);
       setStatusMessage('');
@@ -60,7 +66,7 @@ export const ResearchBriefView: React.FC<ResearchBriefViewProps> = ({
   const handleInsertReport = async () => {
     if (!report || !skill) return;
     await skill.insertIntoDocument(report);
-    alert('Research brief inserted into manuscript at cursor position.');
+    setNotice({ type: 'success', text: 'Research brief inserted into manuscript at cursor position.' });
   };
 
   return (
@@ -108,6 +114,16 @@ export const ResearchBriefView: React.FC<ResearchBriefViewProps> = ({
         {isSearching && (
           <div className="font-mono text-[10px] uppercase tracking-wider text-[#181714] dark:text-[#faf8f5] animate-pulse font-medium">
             {statusMessage}
+          </div>
+        )}
+
+        {notice && !isSearching && (
+          <div className={`p-2.5 rounded-lg text-[10px] font-mono leading-relaxed border ${
+            notice.type === 'error'
+              ? 'bg-[#faefec] dark:bg-[#2b1613] text-[#9e3a2b] dark:text-[#e57373] border-[#f0c5bd] dark:border-[#4d1f19]'
+              : 'bg-[#edf5f0] dark:bg-[#14281e] text-[#2d6a4f] dark:text-[#52b788] border-[#b7dfc9] dark:border-[#1d4734]'
+          }`}>
+            {notice.text}
           </div>
         )}
       </div>

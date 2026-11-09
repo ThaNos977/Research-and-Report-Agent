@@ -16,8 +16,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave,
 }) => {
   const [apiKey, setApiKey] = useState(settings.geminiApiKey || '');
-  const [modelId, setModelId] = useState(settings.modelId || 'gemini-3.5-flash');
-  const [embeddingModelId, setEmbeddingModelId] = useState(settings.embeddingModelId || 'gemini-embedding-001');
+  const [modelId, setModelId] = useState(settings.modelId || 'gemini-3.5-flash-lite');
+  const [embeddingModelId, setEmbeddingModelId] = useState(settings.embeddingModelId || 'word2vec');
   const [chunkSize, setChunkSize] = useState(settings.chunkSize || 800);
   const [retrievalK, setRetrievalK] = useState(settings.retrievalK || 5);
   const [driftThreshold, setDriftThreshold] = useState(settings.driftThreshold || 0.82);
@@ -93,8 +93,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(e) => setModelId(e.target.value)}
                 className="w-full px-2.5 py-2 text-xs bg-[#f5f2eb] dark:bg-[#12110f] border border-[#d5cfbe] dark:border-[#38342c] rounded-lg focus:border-[#181714] dark:focus:border-[#faf8f5] outline-none text-[#181714] dark:text-[#faf8f5] cursor-pointer font-mono"
               >
-                <option value="gemini-3.5-flash">Gemini 3.5 Flash (Recommended)</option>
-                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (Recommended)</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                 <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
                 <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
               </select>
@@ -109,11 +109,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(e) => setEmbeddingModelId(e.target.value)}
                 className="w-full px-2.5 py-2 text-xs bg-[#f5f2eb] dark:bg-[#12110f] border border-[#d5cfbe] dark:border-[#38342c] rounded-lg focus:border-[#181714] dark:focus:border-[#faf8f5] outline-none text-[#181714] dark:text-[#faf8f5] cursor-pointer font-mono"
               >
-                <option value="gemini-embedding-001">gemini-embedding-001 (Recommended)</option>
+                <option value="word2vec">Word2Vec (Local Offline Centroid - Recommended)</option>
+                <option value="gemini-embedding-001">gemini-embedding-001 (Google API)</option>
                 <option value="gemini-embedding-2-preview">gemini-embedding-2-preview</option>
               </select>
             </div>
           </div>
+          {embeddingModelId === 'word2vec' && (
+            <p className="font-mono text-[9px] uppercase tracking-wider text-[#2d6a4f] dark:text-[#52b788] flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 shrink-0" />
+              Word2Vec operates 100% locally in browser with 0 network calls and zero rate limits.
+            </p>
+          )}
 
           {/* Tuning Parameters */}
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#e8e3d8] dark:border-[#26241f]">

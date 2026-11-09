@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <title>Research & Documentation Assistant</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #f5f2eb;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+      .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #686153;
+        font-size: 13px;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fallback Notice if Chrome blocks http:// localhost iframe due to HTTPS Mixed Content -->
+    <div id="fallback-notice" style="display: none; padding: 24px 18px; text-align: center; color: #181714; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #ede8dc; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 18px;">🔒</div>
+      <h3 style="margin: 0 0 6px; font-size: 15px; font-weight: 600;">Enable Localhost in Chrome</h3>
+      <p style="font-size: 11px; color: #686153; line-height: 1.5; margin: 0 0 16px;">
+        Google Docs runs on <b>HTTPS</b>, so Chrome blocks the <b>http://localhost:3000</b> dev server by default.
+      </p>
+      <div style="background: #faf8f5; border: 1px solid #dfd9cc; border-radius: 8px; padding: 12px; text-align: left; font-size: 11px; line-height: 1.6; color: #403b32; margin-bottom: 16px;">
+        <b>1.</b> In the address bar above, click the <b>Tune/Lock icon</b> next to <code>docs.google.com</code><br>
+        <b>2.</b> Click <b>Site settings</b><br>
+        <b>3.</b> Set <b>Insecure content</b> to <b>Allow</b><br>
+        <b>4.</b> Reload this Google Doc tab!
+      </div>
+      <a href="http://localhost:3000" target="_blank" style="display: inline-block; padding: 8px 16px; background: #181714; color: #faf8f5; text-decoration: none; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+        Open Standalone Web App ↗
+      </a>
+    </div>
+
+    <!-- Active Assistant Frame -->
+    <iframe id="assistant-frame" src="http://localhost:3000" allow="clipboard-read; clipboard-write" onload="document.getElementById('fallback-notice').style.display='none'"></iframe>
+
+    <script>
+      // Show fallback instructions if iframe is blocked by Chrome mixed-content policy
+      setTimeout(function() {
+        var frame = document.getElementById('assistant-frame');
+        try {
+          if (!frame.contentWindow || frame.contentWindow.location.href === 'about:blank') {
+            document.getElementById('fallback-notice').style.display = 'block';
+          }
+        } catch(e) {
+          // Cross-origin blocked: show instructions
+          document.getElementById('fallback-notice').style.display = 'block';
+        }
+      }, 1500);
+      // Bidirectional RPC Bridge between embedded React Assistant and Google Apps Script
+      window.addEventListener('message', function(event) {
+        var data = event.data;
+        if (!data || !data.type || !data.type.startsWith('GDOCS_RPC_')) return;
+
+        var frame = document.getElementById('assistant-frame').contentWindow;
+
+        if (data.type === 'GDOCS_RPC_GET_PARAGRAPHS') {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              frame.postMessage({ type: 'GDOCS_RPC_GET_PARAGRAPHS_RES', id: data.id, result: res }, '*');
+            })
+            .withFailureHandler(function(err) {
+              frame.postMessage({ type: 'GDOCS_RPC_GET_PARAGRAPHS_RES', id: data.id, error: String(err) }, '*');
+            })
+            .getParagraphsRpc();
+        } else if (data.type === 'GDOCS_RPC_GET_SELECTION') {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              frame.postMessage({ type: 'GDOCS_RPC_GET_SELECTION_RES', id: data.id, result: res }, '*');
+            })
+            .withFailureHandler(function(err) {
+              frame.postMessage({ type: 'GDOCS_RPC_GET_SELECTION_RES', id: data.id, error: String(err) }, '*');
+            })
+            .getSelectionRpc();
+        } else if (data.type === 'GDOCS_RPC_APPLY_EDIT') {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              frame.postMessage({ type: 'GDOCS_RPC_APPLY_EDIT_RES', id: data.id, result: res }, '*');
+            })
+            .applyEditRpc(data.original, data.replacement);
+        } else if (data.type === 'GDOCS_RPC_INSERT') {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              frame.postMessage({ type: 'GDOCS_RPC_INSERT_RES', id: data.id, result: res }, '*');
+            })
+            .insertContentRpc(data.markdown);
+        }
+      });
+    </script>
+  </body>
+</html>

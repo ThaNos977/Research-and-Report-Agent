@@ -10,6 +10,7 @@ import {
   RichContent,
 } from '../core/types';
 import { StructureAwareChunker } from '../core/nlp/chunker';
+import { SAMPLE_RESEARCH_PAPER } from '../host-mock/samplePaper';
 
 export class GoogleDocsAdapter implements DocumentAdapter {
   capabilities = {
@@ -19,7 +20,7 @@ export class GoogleDocsAdapter implements DocumentAdapter {
   };
 
   private getScript(): any {
-    return (globalThis as any).google?.script?.run;
+    return (globalThis as any).google?.script?.run || (globalThis as any).parent?.google?.script?.run;
   }
 
   async getDocumentId(): Promise<string> {
@@ -53,7 +54,26 @@ export class GoogleDocsAdapter implements DocumentAdapter {
   async getParagraphs(): Promise<ParagraphInfo[]> {
     const script = this.getScript();
     if (!script) {
-      return [];
+      // Standalone web mode fallback: parse sample document so UI is immediately interactive
+      const lines = SAMPLE_RESEARCH_PAPER.split('\n\n').filter((l) => l.trim());
+      return lines.map((text, i) => {
+        let headingLevel: number | undefined;
+        if (text.startsWith('# ')) headingLevel = 1;
+        else if (text.startsWith('## ')) headingLevel = 2;
+        else if (text.startsWith('### ')) headingLevel = 3;
+
+        return {
+          index: i,
+          text: text.replace(/^#+\s*/, '').trim(),
+          headingLevel,
+          locator: {
+            host: 'gdocs',
+            paragraphIndex: i,
+            startsWith: text.slice(0, 40),
+            contextHash: StructureAwareChunker.hashText(text),
+          },
+        };
+      });
     }
 
     return new Promise((resolve) => {

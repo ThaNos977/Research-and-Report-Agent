@@ -13,13 +13,16 @@ export class GeminiClient {
   private ai: GoogleGenAI;
   private modelId: string;
   private embeddingModelId: string;
+  private cache = new Map<string, { val: any; time: number }>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5-minute memory cache to slash RPM & tokens
 
-  constructor(apiKey: string, modelId = 'gemini-3.5-flash', embeddingModelId = 'gemini-embedding-001') {
+  constructor(apiKey: string, modelId = 'gemini-3.5-flash-lite', embeddingModelId = 'word2vec') {
     this.ai = new GoogleGenAI({ apiKey });
-    // Remap deprecated or discontinued models automatically
-    this.modelId = (modelId === 'gemini-2.5-flash' || modelId === 'models/gemini-2.5-flash')
-      ? 'gemini-3.5-flash'
-      : modelId.replace(/^models\//, '');
+    // Remap deprecated models automatically to gemini-3.5-flash-lite
+    const cleanModel = modelId.replace(/^models\//, '');
+    this.modelId = (cleanModel === 'gemini-2.5-flash' || cleanModel === 'models/gemini-2.5-flash')
+      ? 'gemini-3.5-flash-lite'
+      : cleanModel;
     this.embeddingModelId = (embeddingModelId === 'text-embedding-004' || embeddingModelId.includes('text-embedding-004'))
       ? 'gemini-embedding-001'
       : embeddingModelId.replace(/^models\//, '');
@@ -35,10 +38,19 @@ export class GeminiClient {
 
   /**
    * Stage 1 Call: Execute a search-grounded request to fetch factual citations & evidence.
+   * Resilient against search quota limits (429): automatically falls back to ungrounded generation.
    */
   async generateWithGrounding(prompt: string, systemInstruction?: string): Promise<GroundedResult> {
-    return await withRetry(async () => {
+    const cacheKey = `ground:${this.modelId}:${prompt.slice(0, 200)}:${systemInstruction || ''}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.time < this.CACHE_TTL_MS) {
+      return cached.val;
+    }
+
+    const result = await withRetry(async () => {
       let response;
+      let usedSearch = true;
+
       try {
         response = await this.ai.models.generateContent({
           model: this.modelId,
@@ -49,8 +61,23 @@ export class GeminiClient {
           },
         });
       } catch (err: any) {
-        // If the selected model returns 404 or unavailable, fallback to gemini-3.5-flash
-        if (err?.status === 404 || err?.message?.includes('not found') || err?.message?.includes('no longer available')) {
+        const isQuotaOrRateLimit =
+          err?.status === 429 ||
+          err?.message?.includes('429') ||
+          err?.message?.includes('RESOURCE_EXHAUSTED') ||
+          err?.message?.includes('quota') ||
+          err?.message?.includes('Search');
+
+        if (isQuotaOrRateLimit) {
+          // Fall back to direct generation without search tool to conserve RPM/quota and prevent crashes
+          console.warn(`[GeminiClient] Google Search quota exhausted or rate limited; falling back to direct LLM generation without search tool.`);
+          usedSearch = false;
+          response = await this.ai.models.generateContent({
+            model: this.modelId,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: systemInstruction ? { systemInstruction } : undefined,
+          });
+        } else if (err?.status === 404 || err?.message?.includes('not found') || err?.message?.includes('no longer available')) {
           console.warn(`[GeminiClient] Model ${this.modelId} unavailable, falling back to gemini-3.5-flash`);
           response = await this.ai.models.generateContent({
             model: 'gemini-3.5-flash',
@@ -68,7 +95,7 @@ export class GeminiClient {
       const candidate = response.candidates?.[0];
       const text = candidate?.content?.parts?.map((p: any) => p.text || '').join('\n') || response.text || '';
       const rawMetadata = candidate?.groundingMetadata;
-      const evidence = GroundingMetadataParser.extractEvidence(rawMetadata);
+      const evidence = usedSearch ? GroundingMetadataParser.extractEvidence(rawMetadata) : [];
 
       return {
         text,
@@ -76,6 +103,9 @@ export class GeminiClient {
         rawGroundingMetadata: rawMetadata,
       };
     });
+
+    this.cache.set(cacheKey, { val: result, time: Date.now() });
+    return result;
   }
 
   /**
@@ -86,7 +116,13 @@ export class GeminiClient {
     systemInstruction: string,
     schema?: any
   ): Promise<T> {
-    return await withRetry(async () => {
+    const cacheKey = `struct:${this.modelId}:${prompt.slice(0, 300)}:${systemInstruction}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.time < this.CACHE_TTL_MS) {
+      return cached.val as T;
+    }
+
+    const result = await withRetry(async () => {
       const config: any = {
         systemInstruction,
         responseMimeType: 'application/json',
@@ -127,13 +163,22 @@ export class GeminiClient {
         throw new Error(`Failed to parse model structured response: ${text.slice(0, 100)}...`);
       }
     });
+
+    this.cache.set(cacheKey, { val: result, time: Date.now() });
+    return result;
   }
 
   /**
    * Simple conversational or completion call with optional system instructions.
    */
   async generateText(prompt: string, systemInstruction?: string): Promise<string> {
-    return await withRetry(async () => {
+    const cacheKey = `text:${this.modelId}:${prompt.slice(0, 300)}:${systemInstruction || ''}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.time < this.CACHE_TTL_MS) {
+      return cached.val as string;
+    }
+
+    const result = await withRetry(async () => {
       let response;
       try {
         response = await this.ai.models.generateContent({
@@ -155,13 +200,19 @@ export class GeminiClient {
       }
       return response.text || '';
     });
+
+    this.cache.set(cacheKey, { val: result, time: Date.now() });
+    return result;
   }
 
   /**
    * Generate vector embeddings for text chunks or queries using gemini-embedding-001,
    * with automatic fallback to gemini-embedding-2-preview and deterministic pseudo-embeddings.
    */
-  async embedContent(text: string): Promise<number[]> {
+  async embedContent(
+    text: string,
+    taskType?: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY'
+  ): Promise<number[]> {
     return await withRetry(async () => {
       let modelToUse = this.embeddingModelId;
       if (modelToUse === 'text-embedding-004' || modelToUse.includes('text-embedding-004')) {
@@ -169,10 +220,13 @@ export class GeminiClient {
       }
       modelToUse = modelToUse.replace(/^models\//, '');
 
+      const config = taskType ? { taskType } : undefined;
+
       try {
         const response = await this.ai.models.embedContent({
           model: modelToUse,
           contents: text,
+          config,
         });
         const values = (response as any).embeddings?.[0]?.values || (response as any).embedding?.values;
         if (Array.isArray(values) && values.length > 0) {
@@ -187,6 +241,7 @@ export class GeminiClient {
           const fallbackRes = await this.ai.models.embedContent({
             model: fallbackModel,
             contents: text,
+            config,
           });
           const values = (fallbackRes as any).embeddings?.[0]?.values || (fallbackRes as any).embedding?.values;
           if (Array.isArray(values) && values.length > 0) {

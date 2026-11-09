@@ -48,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
             <option value="mock" className="bg-[#faf8f5] text-[#181714] dark:bg-[#181714] dark:text-[#faf8f5]">Mock Paper</option>
             <option value="word" className="bg-[#faf8f5] text-[#181714] dark:bg-[#181714] dark:text-[#faf8f5]">MS Word</option>
             <option value="gdocs" className="bg-[#faf8f5] text-[#181714] dark:bg-[#181714] dark:text-[#faf8f5]">Google Docs</option>
+            <option value="pdf" className="bg-[#faf8f5] text-[#181714] dark:bg-[#181714] dark:text-[#faf8f5]">PDF File</option>
           </select>
           <ChevronDown className="w-3 h-3 text-[#8f8674] absolute right-2 pointer-events-none" />
         </div>

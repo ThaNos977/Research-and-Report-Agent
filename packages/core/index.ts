@@ -10,6 +10,7 @@ export * from './nlp/retriever';
 export * from './nlp/citationParser';
 export * from './nlp/metrics';
 export * from './nlp/driftGuard';
+export * from './nlp/word2vec';
 export * from './tools';
 export * from './agent/reactLoop';
 export * from './skills';

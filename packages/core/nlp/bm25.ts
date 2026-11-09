@@ -20,13 +20,54 @@ export class BM25Index {
     this.b = b;
   }
 
+  private static STOPWORDS = new Set([
+    'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'so', 'as', 'at',
+    'by', 'for', 'from', 'in', 'into', 'of', 'off', 'on', 'onto', 'over',
+    'to', 'up', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'that', 'this', 'these', 'those',
+    'it', 'its', 'they', 'them', 'their', 'we', 'our', 'us'
+  ]);
+
   /**
-   * Domain-specific tokenizer that preserves numbers and citation markers.
+   * Domain-specific tokenizer that preserves numbers and citation markers,
+   * with morphological suffix normalization (stemming).
    */
   static tokenize(text: string): string[] {
     // Preserve citation patterns [1], (Author, 2020), percentages, decimals, and alphanumeric tokens
-    const matches = text.toLowerCase().match(/\[\d+(?:[-–,\s]+\d+)*\]|\b\d+(?:\.\d+)?%?|\b[a-z0-9_-]+\b/g);
-    return matches || [];
+    const rawMatches = text.toLowerCase().match(/\[\d+(?:[-–,\s]+\d+)*\]|\b\d+(?:\.\d+)?%?|\b[a-z0-9_-]+\b/g) || [];
+    
+    const tokens: string[] = [];
+    for (const raw of rawMatches) {
+      if (this.STOPWORDS.has(raw)) continue;
+
+      // Keep citations and numeric tokens verbatim
+      if (/^\[|\d|%/.test(raw)) {
+        tokens.push(raw);
+        continue;
+      }
+
+      // Morphological suffix stripping (light Porter-style rules for academic vocabulary)
+      let stem = raw;
+      if (stem.length > 5) {
+        if (stem.endsWith('ation')) stem = stem.slice(0, -5) + 'e';
+        else if (stem.endsWith('tions') || stem.endsWith('sions')) stem = stem.slice(0, -5);
+        else if (stem.endsWith('tion') || stem.endsWith('sion')) stem = stem.slice(0, -4);
+        else if (stem.endsWith('ing') && stem.length > 6) stem = stem.slice(0, -3);
+        else if (stem.endsWith('ies') && stem.length > 5) stem = stem.slice(0, -3) + 'y';
+        else if (stem.endsWith('ed') && stem.length > 5) stem = stem.slice(0, -2);
+        else if (stem.endsWith('ment') && stem.length > 6) stem = stem.slice(0, -4);
+        else if (stem.endsWith('able') || stem.endsWith('ible')) stem = stem.slice(0, -4);
+        else if (stem.endsWith('s') && !stem.endsWith('ss') && stem.length > 3) stem = stem.slice(0, -1);
+      }
+
+      tokens.push(stem);
+      // Also index original if different for exact match boost
+      if (stem !== raw) {
+        tokens.push(raw);
+      }
+    }
+
+    return tokens;
   }
 
   buildIndex(chunks: DocChunk[]) {

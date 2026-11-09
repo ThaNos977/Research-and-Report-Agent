@@ -3,7 +3,7 @@
  * Shared across core engine, host adapters (Word, Google Docs, Mock), and UI.
  */
 
-export type HostType = 'word' | 'gdocs' | 'mock';
+export type HostType = 'word' | 'gdocs' | 'mock' | 'pdf';
 
 export interface Locator {
   host: HostType;
@@ -98,6 +98,9 @@ export interface CitationRef {
   year?: number;
   title?: string;
   matchedGrounding?: boolean;
+  doi?: string;
+  arxiv?: string;
+  url?: string;
 }
 
 export interface ReadabilityMetrics {

@@ -8,3 +8,4 @@ export * from './components/ReviewSectionView';
 export * from './components/DocsAssistView';
 export * from './components/ResearchBriefView';
 export * from './components/MockDocumentViewer';
+export * from './components/PdfDocumentViewer';
